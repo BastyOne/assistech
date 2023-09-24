@@ -1,64 +1,39 @@
-import 'package:flutter/material.dart';
-
-class GeofencingStatusScreen extends StatefulWidget {
-  final Stream<bool> geofenceStream;
-
-  GeofencingStatusScreen({required this.geofenceStream});
-
-  @override
-  _GeofencingStatusScreenState createState() => _GeofencingStatusScreenState();
-}
-
-class _GeofencingStatusScreenState extends State<GeofencingStatusScreen> {
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Estado de Geofencing',
-          style: TextStyle(
-            color: Colors.black,
-            fontFamily: 'Poppins',
-          ),
-        ),
-        backgroundColor: Colors.white,
-        iconTheme: IconThemeData(color: Colors.black),
-      ),
-      body: StreamBuilder<bool>(
-        stream: widget.geofenceStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator()); // Mostrar un indicador de carga mientras se espera por los datos
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Error de Geofence: ${snapshot.error}', style: TextStyle(fontFamily: 'Poppins'))); // Mostrar el mensaje de error si ocurre uno
-          }
-
-          if (!snapshot.hasData) {
-            return Center(child: Text('No se han recibido datos', style: TextStyle(fontFamily: 'Poppins'))); // Mensaje en caso de que no haya datos
-          }
-
-          bool isInsideGeofence = snapshot.data!;
-          
-          return Center(child: Text(isInsideGeofence ? 'Dentro de Geofence' : 'Fuera de Geofence', style: TextStyle(fontFamily: 'Poppins'))); // Mostrar el estado de geofence basado en los datos recibidos
-        },
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: Icon(Icons.home),
-              onPressed: () {
-                Navigator.pushNamed(context, '/main_screen');
-                // Añade tu acción aquí para el botón Home
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+   
+   
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- Otros permisos que puedas necesitar -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> <!-- Permiso de ubicación precisa -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Permiso de ubicación aproximada -->
+    
+    <application
+        android:label="assistech"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+</manifest>
