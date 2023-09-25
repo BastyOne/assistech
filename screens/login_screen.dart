@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:snippet_coder_utils/FormHelper.dart';
 import 'package:snippet_coder_utils/ProgressHUD.dart';
-import 'package:assistech/screens/main_screen.dart'; // Ajusta esto con la ruta correcta a tu archivo main_screen.dart
-
+import 'package:assistech/screens/main_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -23,59 +23,71 @@ class _LoginPageState extends State<LoginPage> {
   String? rut;
   String? password;
 
-  final ApiService apiService = ApiService('http://192.168.100.81:3000', http.Client());
+  final ApiService apiService =
+      ApiService('http://192.168.100.81:3000', http.Client());
 
   void loginButtonPressed() async {
-  if (globalFormKey.currentState!.validate()) {
-    globalFormKey.currentState!.save();
+    if (globalFormKey.currentState!.validate()) {
+      globalFormKey.currentState!.save();
 
-    try {
-      setState(() {
-        isAPIcallProcess = true;
-      });
+      try {
+        setState(() {
+          isAPIcallProcess = true;
+        });
 
-      final response = await apiService.login(rut!, password!);
-      if (response.containsKey('user') && response.containsKey('role')) {
-        print('Inicio de sesión exitoso');
-        if (response['role'] == 'estudiante') {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const GeoFencingScreen()), // Asegúrate de importar MainScreen
+        final response = await apiService.login(rut!, password!);
+        if (response.containsKey('user') && response.containsKey('role')) {
+          print('Inicio de sesión exitoso');
+
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          prefs.setInt("userId", response['user']['id']);
+          prefs.setString("userRole", response['role']);
+
+          // Imprimir los valores almacenados para comprobar
+          print('UserID almacenado: ${response['user']['id']}');
+          print('UserRole almacenado: ${response['role']}');
+
+          if (response['role'] == 'estudiante') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const GeoFencingScreen()), // Asegúrate de importar MainScreen
+            );
+          } else if (response['role'] == 'administrador') {
+            Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdmidPanelPage(),
+                ));
+          } else if (response['role'] == 'profesor') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => ProfesorScreen()),
+            );
+          }
+        } else {
+          // Mostrando un snackbar en caso de un error
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al iniciar sesión: ${response['error']}'),
+            ),
           );
-        } else if (response['role'] == 'administrador'){
-          Navigator.pushReplacement(
-            context, 
-            MaterialPageRoute(builder: (context) => const AdmidPanelPage(),));
-        } else if (response['role'] == 'profesor') {
-          Navigator.pushReplacement(
-            context, 
-            MaterialPageRoute(builder: (context) => ProfesorScreen()),
-           );
-        } 
-
-      } else {
-        // Mostrando un snackbar en caso de un error
+        }
+      } catch (e) {
+        // Mostrando un snackbar en caso de una excepción
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al iniciar sesión: ${response['error']}'),
+            content: Text('Error al iniciar sesión: $e'),
           ),
         );
+      } finally {
+        setState(() {
+          isAPIcallProcess = false;
+        });
       }
-    } catch (e) {
-      // Mostrando un snackbar en caso de una excepción
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al iniciar sesión: $e'),
-        ),
-      );
-    } finally {
-      setState(() {
-        isAPIcallProcess = false;
-      });
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -214,10 +226,9 @@ class _LoginPageState extends State<LoginPage> {
                     TextSpan(
                       text: 'Forget Password?',
                       style: const TextStyle(
-                        color: Colors.black,
-                        decoration: TextDecoration.underline,
-                        fontFamily: 'Poppins'
-                      ),
+                          color: Colors.black,
+                          decoration: TextDecoration.underline,
+                          fontFamily: 'Poppins'),
                       recognizer: TapGestureRecognizer()
                         ..onTap = () {
                           print('Forget Password');
