@@ -80,6 +80,7 @@ app.post('/login', async (req, res) => {
 
       // Enviar la respuesta con los detalles del usuario y el rol
       res.status(200).json({ user: results[0], role: roleResults[0].nombre });
+      console.log(`Usuario con RUT: ${rut} ha iniciado sesión correctamente.`);
     });
   });
 });
@@ -164,3 +165,43 @@ app.get('/salaDetails/:salaId', (req, res) => {
     res.status(200).json(results[0]);  // Devolvemos el primer resultado ya que estamos buscando detalles por ID único
   });
 });
+
+app.post('/crear-clase-programada', (req, res) => {
+  const { sala_id, materia_id, profesor_id } = req.body;
+
+  const insertQuery = 'INSERT INTO clases_programadas (sala_id, materia_id, profesor_id) VALUES (?, ?, ?)';
+  const values = [sala_id, materia_id, profesor_id];
+
+  db.query(insertQuery, values, (err, results) => {
+    if (err) {
+      console.error('Error al crear una clase programada: ' + err.message);
+      return res.status(500).json({ error: 'Error al crear una clase programada' });
+    }
+
+    // Una vez creada la clase programada, asignamos la materia al profesor
+    const assignMateriaQuery = 'INSERT INTO profesor_materia (profesor_id, materia_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE profesor_id = profesor_id';
+    db.query(assignMateriaQuery, [profesor_id, materia_id], (err, _) => {
+      if (err) {
+        console.error('Error al asignar materia a profesor: ' + err.message);
+        return res.status(500).json({ error: 'Error al asignar materia a profesor' });
+      }
+      console.log('Clase programada creada con éxito y materia asignada al profesor')
+      res.status(200).json({ message: 'Clase programada creada con éxito y materia asignada al profesor', claseId: results.insertId });
+    });
+  });
+});
+app.post('/registrar-asistencia', (req, res) => {
+  const { estudiante_id, clase_programada_id } = req.body;
+
+  const insertQuery = 'INSERT INTO asistencias (estudiante_id, clase_programada_id) VALUES (?, ?)';
+  const values = [estudiante_id, clase_programada_id];
+
+  db.query(insertQuery, values, (err, results) => {
+    if (err) {
+      console.error('Error al registrar asistencia: ' + err.message);
+      return res.status(500).json({ error: 'Error al registrar asistencia' });
+    }
+    res.status(200).json({ message: 'Asistencia registrada con éxito' });
+  });
+});
+
