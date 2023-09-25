@@ -1,18 +1,20 @@
+import 'dart:convert';
+import 'package:assistech/screens/student_registration_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'student_registration_screen.dart'; // Importa la pantalla de registro de estudiantes
+// Importa la pantalla de registro de estudiantes
 
 class QRScanScreen extends StatefulWidget {
   const QRScanScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _QRScanScreenState createState() => _QRScanScreenState();
 }
 
 class _QRScanScreenState extends State<QRScanScreen> {
-  late QRViewController _qrViewController;
   final GlobalKey _qrKey = GlobalKey(debugLabel: 'QR');
+  late QRViewController _qrViewController;
+  
 
   @override
   Widget build(BuildContext context) {
@@ -41,32 +43,7 @@ class _QRScanScreenState extends State<QRScanScreen> {
               onQRViewCreated: _onQRViewCreated,
             ),
           ),
-          Expanded(
-            flex: 1,
-            child: Center(
-              child: ElevatedButton(
-                style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all<Color>(Colors.black),
-                ),
-                onPressed: () {
-                  // Puedes agregar aquí la lógica para detener la cámara si es necesario
-                  if (_qrViewController != null) {
-                    _qrViewController.dispose();
-                  }
-
-                  // Navega a la pantalla de registro de estudiantes
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => StudentRegistrationScreen()),
-                  );
-                },
-                child: const Text(
-                  'Registrar Asistencia Manual',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          ),
+          
         ],
       ),
       bottomNavigationBar: BottomAppBar(
@@ -91,21 +68,26 @@ class _QRScanScreenState extends State<QRScanScreen> {
       _qrViewController = controller;
     });
     controller.scannedDataStream.listen((scanData) {
-      // Aquí puedes manejar la información escaneada
-      print('Escaneado: $scanData');
-      
-      // Puedes agregar aquí la lógica para detener la cámara si es necesario
-      if (_qrViewController != null) {
+      if (scanData.code != null) {
+        final Map<String, dynamic> qrData = jsonDecode(scanData.code!);
+
+        // Detener la cámara y liberar recursos
         _qrViewController.dispose();
+
+        // Redirigir a la pantalla de registro de estudiantes con los datos del QR
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StudentRegistrationScreen(qrData: qrData),
+          ),
+        );
       }
     });
-  }
+}
 
   @override
   void dispose() {
-    if (_qrViewController != null) {
-      _qrViewController.dispose();
-    }
-    super.dispose();
+    _qrViewController.dispose();
+      super.dispose();
   }
 }
