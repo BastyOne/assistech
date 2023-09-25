@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:assistech/screens/api_service.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:qr_flutter/qr_flutter.dart' ;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:assistech/models/shared_preferences_service.dart';
+
 
 
 class ProfesorSchedulePage extends StatefulWidget {
@@ -14,61 +16,65 @@ class ProfesorSchedulePage extends StatefulWidget {
 }
 
 class _ProfesorSchedulePageState extends State<ProfesorSchedulePage> {
-  final ApiService apiService =
-      ApiService('http://192.168.100.81:3000', http.Client());
+  final ApiService apiService = ApiService('http://192.168.100.81:3000', http.Client());
 
   String? selectedSalaName;
   int? selectedSalaId;
   String? selectedMateria;
   String? qrData;
   List<Sala> salasList = [];
-  List<String> materiasList = [];
+  List<Materia> materiasList = [];
+  int? profesorId;
+  int? selectedMateriaId;
 
   @override
   void initState() {
     super.initState();
-    fetchSalasAndMaterias();
+    fetchUserAndSalasMaterias();
   }
 
-  Future<void> fetchSalasAndMaterias() async {
+  Future<void> fetchUserAndSalasMaterias() async {
+    final userDetails = await SharedPreferencesService().getUserDetails();
+    profesorId = userDetails['userId'];
+
     List<Sala> fetchedSalas = await apiService.getSalas();
-    List<String> fetchedMaterias = await apiService.getMaterias();
+    List<Materia> fetchedMaterias = await apiService.getMaterias();
 
     setState(() {
-      salasList = fetchedSalas;
-      materiasList = fetchedMaterias;
+        salasList = fetchedSalas;
+        materiasList = fetchedMaterias;
     });
-  }
-
-  Future<void> _selectSala(BuildContext context) async {
-  var selected = await showDialog<Sala>(
-    context: context,
-    builder: (BuildContext context) {
-      return SimpleDialog(
-        title: const Text('Seleccione una Sala'),
-        children: salasList.map<Widget>((sala) {
-          return SimpleDialogOption(
-            onPressed: () {
-              Navigator.pop(context, sala);
-            },
-            child: Text(sala.nombre),
-          );
-        }).toList(),
-      );
-    },
-  );
-
-  if (selected != null) {
-    setState(() {
-      selectedSalaName = selected.nombre;
-      selectedSalaId = selected.id;
-    });
-  }
 }
 
 
+  Future<void> _selectSala(BuildContext context) async {
+    var selected = await showDialog<Sala>(
+      context: context,
+      builder: (BuildContext context) {
+        return SimpleDialog(
+          title: const Text('Seleccione una Sala'),
+          children: salasList.map<Widget>((sala) {
+            return SimpleDialogOption(
+              onPressed: () {
+                Navigator.pop(context, sala);
+              },
+              child: Text(sala.nombre),
+            );
+          }).toList(),
+        );
+      },
+    );
+
+    if (selected != null) {
+      setState(() {
+        selectedSalaName = selected.nombre;
+        selectedSalaId = selected.id;
+      });
+    }
+  }
+
   Future<void> _selectMateria(BuildContext context) async {
-    var selected = await showDialog<String>(
+    var selected = await showDialog<Materia>(
       context: context,
       builder: (BuildContext context) {
         return SimpleDialog(
@@ -78,7 +84,7 @@ class _ProfesorSchedulePageState extends State<ProfesorSchedulePage> {
               onPressed: () {
                 Navigator.pop(context, materia);
               },
-              child: Text(materia),
+              child: Text(materia.nombre),
             );
           }).toList(),
         );
@@ -87,29 +93,50 @@ class _ProfesorSchedulePageState extends State<ProfesorSchedulePage> {
 
     if (selected != null) {
       setState(() {
-        selectedMateria = selected;
+        selectedMateria = selected.nombre;  // Guardamos el nombre para mostrarlo en el UI
+        selectedMateriaId = selected.id;   // Guardamos el ID para enviarlo en generateQRData
       });
     }
-  }
+}
+
 
   Future<void> generateQRData() async {
-    if (selectedSalaId != null && selectedMateria != null) {
-       final salaDetails = await apiService.getSalaDetails(selectedSalaId!.toString());
+    try {
+      print("Entrando a generateQRData");
 
-      final String data = jsonEncode({
-        'latitude': salaDetails.latitud,
-        'longitude': salaDetails.longitud,
-        'radius': salaDetails.radio,
-        'materia': selectedMateria,
-      });
+      if (selectedSalaId != null && selectedMateria != null && profesorId != null) {
+        print("Todos los datos requeridos están disponibles");
 
-      setState(() {
-        qrData = data;
-      });
+        // Aquí estamos seguros de que selectedSalaId no es nulo, por lo que podemos usar '!'
+        final salaDetails = await apiService.getSalaDetails(selectedSalaId!.toString());
+        print("Detalles de la sala obtenidos: $salaDetails");
+
+        final claseProgramadaId = await apiService.crearClaseProgramada(selectedSalaId!, selectedMateriaId!, profesorId!);
+        if (claseProgramadaId != null) {
+          final String data = jsonEncode({
+            'claseProgramadaId': claseProgramadaId,
+            'latitude': salaDetails.latitud,
+            'longitude': salaDetails.longitud,
+            'radius': salaDetails.radio,
+            'materia': selectedMateria,
+            'salaID': selectedSalaId,
+          });
+
+          setState(() {
+            qrData = data;
+          });
+        } else {
+          print("Error al obtener el ID de la clase programada");
+        }
+      } else {
+        print("Datos faltantes: selectedSalaId: $selectedSalaId, selectedMateria: $selectedMateria, profesorId: $profesorId");
+      }
+    } catch (e, stacktrace) {
+      print("Excepción capturada en generateQRData: $e");
+      print(stacktrace);
     }
-  }
+}
 
-  
 
   @override
   Widget build(BuildContext context) {
