@@ -62,18 +62,45 @@ class ApiService {
 
 
 
-Future<List<String>> getMaterias() async {
+Future<List<Materia>> getMaterias() async {
   final response = await client.get(
     Uri.parse('http://192.168.100.81:3000/get-materias'),
   );
 
   if (response.statusCode == 200) {
-    var materias = jsonDecode(response.body);
-    return materias.map<String>((materia) => materia['nombre'].toString()).toList();
+    var materiasJson = jsonDecode(response.body);
+    return materiasJson.map<Materia>((materia) => Materia.fromJson(materia)).toList();
   } else {
     throw Exception('Failed to load materias');
   }
 }
+
+
+Future<int?> crearClaseProgramada(int salaId, int materiaId, int profesorId) async {
+  final response = await client.post(
+    Uri.parse('http://192.168.100.81:3000/crear-clase-programada'),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode({
+      'sala_id': salaId,
+      'materia_id': materiaId,
+      'profesor_id': profesorId,
+    }),
+  );
+  print('Response status code: ${response.statusCode}');
+  print('Response body: ${response.body}');
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    print(data['message']);
+    return data['claseId'];
+  } else {
+    print('Error al crear la clase programada: ${response.statusCode}');
+    return null;
+  }
+}
+
 
 Future<SalaDetails> getSalaDetails(String salaId) async {
     final response = await client.get(
@@ -88,6 +115,26 @@ Future<SalaDetails> getSalaDetails(String salaId) async {
       throw Exception('Failed to load Sala Details');
     }
   }
+
+  Future<void> registrarAsistencia(int estudianteId, int claseProgramadaId, int salaId) async {
+  final response = await client.post(
+    Uri.parse('http://192.168.100.81:3000/registrar-asistencia'),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode({
+      'estudiante_id': estudianteId,
+      'clase_programada_id': claseProgramadaId,
+      'sala_id': salaId,  // Añadir esta línea
+    }),
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception('Error al registrar asistencia');
+  }
+}
+
+
 }
 
 class SalaDetails {
@@ -121,3 +168,16 @@ class Sala {
   }
 }
 
+class Materia {
+  final int id;
+  final String nombre;
+
+  Materia({required this.id, required this.nombre});
+
+  factory Materia.fromJson(Map<String, dynamic> json) {
+    return Materia(
+      id: json['id'],
+      nombre: json['nombre'],
+    );
+  }
+}
