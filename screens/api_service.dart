@@ -195,6 +195,45 @@ Future<Map<String, dynamic>> registermateria(String nombre) async {
 }
 
 
+Future<int?> crearChequeo(int estudianteId, int claseProgramadaId) async {
+  final response = await client.post(
+    Uri.parse('http://192.168.100.81:3000/crear-chequeo'), // Usa tu dirección IP y puerto correctos
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode({
+      'estudiante_id': estudianteId,
+      'clase_programada_id': claseProgramadaId,
+    }),
+  );
+  
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    return data['chequeoId'];
+  } else {
+    print('Error al crear el chequeo: ${response.statusCode}');
+    return null;
+  }
+}
+
+Future<void> actualizarChequeo(int chequeoId) async {
+  final response = await client.put(
+    Uri.parse('http://192.168.100.81:3000/actualizar-chequeo'), // Asegúrate de que esta es la ruta correcta para tu endpoint de actualizar chequeo
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode({
+      'chequeo_id': chequeoId,
+    }),
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception('Error al actualizar chequeo');
+  }
+}
+
+
+
 }
 
 class SalaDetails {

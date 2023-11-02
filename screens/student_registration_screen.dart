@@ -37,22 +37,20 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   StreamController<bool> geofenceStreamController = StreamController<bool>();
 
   String _storedRut = '';
+  Future<void>? _loadingFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadStoredRut();
+    _loadingFuture = _loadStoredRut();
   }
 
-  _loadStoredRut() async {
+  Future<void> _loadStoredRut() async {
     SharedPreferencesService sharedPreferencesService =
         SharedPreferencesService();
     Map<String, dynamic> userDetails =
         await sharedPreferencesService.getUserDetails();
-
-    setState(() {
-      _storedRut = userDetails['rut'] as String;
-    });
+    _storedRut = userDetails['rut'] as String;
   }
 
   Future<bool> isInsideGeoFenceArea(
@@ -72,7 +70,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
 
   Future<void> _registrarEstudiante() async {
     String nombre = _nombreController.text;
-    String rut = _rutController.text;
+    String rut = _storedRut;
     String correo = _correoController.text;
 
     LocationPermission permission = await Geolocator.checkPermission();
@@ -97,6 +95,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
       int claseProgramadaId = widget.qrData['claseProgramadaId'] ?? 0;
       print('QR Data: ${widget.qrData}');
       print('Contenido de widget.qrData: ${widget.qrData}');
+
+      // Guarda los datos de GeoFence en SharedPreferences
+      final sharedPreferencesService = SharedPreferencesService();
+      await sharedPreferencesService.setGeoFenceDetails(
+          latitude, longitude, radius);
 
       String materia = widget.qrData['materia'] ?? "";
 
@@ -157,6 +160,14 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
           await newGeoFence.registrarEnBaseDeDatos();
           await apiService.registrarAsistencia(estudianteId, claseProgramadaId);
 
+          final int? chequeoId =
+              await apiService.crearChequeo(estudianteId, claseProgramadaId);
+          if (chequeoId != null) {
+            print('Chequeo registrado con ID: $chequeoId');
+          } else {
+            print('Error al registrar chequeo');
+          }
+
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -169,7 +180,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => GeofencingStatusScreen(
+                        builder: (context) => GeoFencingMonitorScreen(
                           geofenceStream: geofenceStreamController.stream,
                         ),
                       ),
@@ -195,70 +206,88 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Registro de Estudiantes',
-          style: TextStyle(
-            color: Colors.black,
-            fontFamily: 'Poppins',
-          ),
-        ),
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              'Latitud: ${widget.qrData['latitude']}, Longitud: ${widget.qrData['longitude']}',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    return FutureBuilder<void>(
+      future:
+          _loadingFuture, // _loadingFuture es el Future<void> creado en initState
+      builder: (context, snapshot) {
+        // Mientras se carga el Future, mostrar un indicador de carga
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
             ),
-            TextField(
-              controller: _nombreController,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-            ),
-            TextField(
-              controller: TextEditingController(text: _storedRut),
-              decoration: const InputDecoration(labelText: 'RUT'),
-              enabled: false,
-            ),
-            TextField(
-              controller: _correoController,
-              decoration: const InputDecoration(labelText: 'Correo'),
-            ),
-            const SizedBox(height: 16.0),
-            Center(
-              child: ElevatedButton(
-                style: ButtonStyle(
-                  backgroundColor:
-                      MaterialStateProperty.all<Color>(Colors.black),
-                ),
-                onPressed: _registrarEstudiante,
-                child: const Text(
-                  'Registrar Estudiante',
-                  style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
+          );
+        } else {
+          // Una vez que el Future se ha completado, construir el Scaffold como de costumbre
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text(
+                'Registro de Estudiantes',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontFamily: 'Poppins',
                 ),
               ),
+              backgroundColor: Colors.white,
+              iconTheme: const IconThemeData(color: Colors.black),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.home),
-              onPressed: () {
-                Navigator.pushNamed(context, '/main_screen');
-              },
+            body: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Latitud: ${widget.qrData['latitude']}, Longitud: ${widget.qrData['longitude']}',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  TextField(
+                    controller: _nombreController,
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                  ),
+                  TextField(
+                    controller: TextEditingController(text: _storedRut),
+                    decoration: const InputDecoration(labelText: 'RUT'),
+                    enabled:
+                        false, // Establecer enabled a false para que el campo sea de solo lectura
+                  ),
+                  TextField(
+                    controller: _correoController,
+                    decoration: const InputDecoration(labelText: 'Correo'),
+                  ),
+                  const SizedBox(height: 16.0),
+                  Center(
+                    child: ElevatedButton(
+                      style: ButtonStyle(
+                        backgroundColor:
+                            MaterialStateProperty.all<Color>(Colors.black),
+                      ),
+                      onPressed: _registrarEstudiante,
+                      child: const Text(
+                        'Registrar Estudiante',
+                        style: TextStyle(
+                            color: Colors.white, fontFamily: 'Poppins'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
+            bottomNavigationBar: BottomAppBar(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.home),
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/main_screen');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      },
     );
   }
 }

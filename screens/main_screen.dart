@@ -1,3 +1,4 @@
+import 'package:assistech/screens/geofencing_status.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'qr_scan_screen.dart';
@@ -15,13 +16,18 @@ class _GeoFencingScreenState extends State<GeoFencingScreen> {
   int _selectedIndex = 1;
   final SharedPreferencesService _sharedPreferencesService = SharedPreferencesService();
 
-  void _onItemTapped(int index) {
+   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
       if (index == 2) {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const QRScanScreen()),
+        );
+      } else if (index == 0) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const GeoFencingMonitorScreen(geofenceStream: null,)), // Reemplaza GeoFencingMonitorScreen con tu Screen real
         );
       }
     });
