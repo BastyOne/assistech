@@ -8,7 +8,8 @@ const saltRounds = 10;
 app.use(express.json());
 
 app.listen(port, () => {
-  console.log(`Servidor Node.js en ejecución en http://192.168.100.81:${port}`);
+  console.log(`Servidor Node.js en ejecución en https://spooky-scene-production.up.railway.app:${port}`);
+
 });
 
 // Define el punto final para registrar estudiantes (ruta POST)
@@ -252,3 +253,40 @@ app.post('/registrar-asistencia', (req, res) => {
   });
 });
 
+app.post('/crear-chequeo', (req, res) => {
+  const { estudiante_id, clase_programada_id } = req.body;
+  // Asegúrate de validar los datos recibidos!
+
+  const insertQuery = 'INSERT INTO chequeos (estudiante_id, clase_programada_id, fecha_hora_entrada) VALUES (?, ?, CURRENT_TIMESTAMP)';
+  const values = [estudiante_id, clase_programada_id];
+
+  db.query(insertQuery, values, (err, results) => {
+    if (err) {
+      console.error('Error al crear chequeo: ' + err.message);
+      return res.status(500).json({ error: 'Error al crear chequeo' });
+    }
+    console.log(`Chequeo creado con éxito para el estudiante con ID: ${estudiante_id} en la clase con ID: ${clase_programada_id}`);
+    res.status(200).json({ message: 'Chequeo creado con éxito', chequeoId: results.insertId });
+  });
+});
+
+app.put('/actualizar-chequeo', (req, res) => {
+  const { chequeo_id, hora_salida } = req.body;
+
+  // Validación de los datos recibidos
+  if (!chequeo_id || !hora_salida) {
+    return res.status(400).json({ error: 'chequeo_id y hora_salida son requeridos' });
+  }
+
+  const updateQuery = 'UPDATE chequeos SET fecha_hora_salida = ? WHERE id = ?';
+  const values = [hora_salida, chequeo_id];
+
+  db.query(updateQuery, values, (err, results) => {
+    if (err) {
+      console.error('Error al actualizar chequeo: ' + err.message);
+      return res.status(500).json({ error: 'Error al actualizar chequeo' });
+    }
+    console.log(`Chequeo con ID: ${chequeo_id} actualizado con éxito`);
+    res.status(200).json({ message: 'Chequeo actualizado con éxito' });
+  });
+});
